@@ -15,7 +15,7 @@ app.get('/', (req, res) => {
     res.send("EventHub server running ..");
 });
 
-const { MongoClient, ServerApiVersion } = require('mongodb');
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster-sajib.cqfdgne.mongodb.net/?retryWrites=true&w=majority&appName=Cluster-Sajib`;
 
 // Create a MongoClient with a MongoClientOptions object to set the Stable API.
@@ -31,7 +31,6 @@ async function run() {
     try {
          await client.connect();
         console.log("Connected to MongoDB!");
-        // zlsi efjg fvvm kvyx
 
         // POST route to send emails
         app.post('/send-mail', (req, res) => {
@@ -40,8 +39,8 @@ async function run() {
             const transporter = nodemailer.createTransport({
                 service: 'gmail',
                 auth: {
-                    user: process.env.EMAIL_USER,  // Use environment variables
-                    pass: process.env.EMAIL_PASS,  // Use environment variables
+                    user: process.env.EMAIL_USER,  
+                    pass: process.env.EMAIL_PASS,  
                 },
             });
 
@@ -69,6 +68,81 @@ async function run() {
                 res.status(200).send({ message: 'Email sent successfully' });
             });
         });
+
+        // New POST route to handle event bookings
+        app.post('/book-event', async (req, res) => {
+            const newBooking = req.body;
+            const r = await bookings.insertOne(newBooking)
+            res.send(r);
+        });
+
+        // service apis 
+        const upcommingEvents = client.db('Event-hub').collection('eventsUpcomming');
+        const bookings = client.db('Event-hub').collection('bookings');
+
+        //get operation
+        app.get('/getUpcommingEvents', async(req,res)=>{
+            const query = upcommingEvents.find();
+            const r = await query.toArray();
+            res.send(r);
+        });
+
+        app.get('/getMyBookings', async(req,res)=>{
+            const query = bookings.find();
+            const r = await query.toArray();
+            res.send(r);
+        });
+
+        app.get('/getMyBooking/:id', async(req,res)=>{
+            const id = req.params.id;
+      
+            const query = { _id: new ObjectId(id) };
+            const result =  await bookings.findOne(query);
+
+            res.send(result);
+        })
+
+        app.put('/updateBooking/:id', async (req, res) => {
+            const id = req.params.id;
+            const updatedBooking = req.body;
+
+      
+            const query = { _id: new ObjectId(id) };
+            const update = {
+              $set: {
+                
+                        name : updatedBooking.name,
+                        organizer : updatedBooking.organizer,
+                        email : updatedBooking.email,
+                        date : updatedBooking.date,
+                        time : updatedBooking.time,
+                        location : updatedBooking.location,
+                        eventType : updatedBooking.eventType,
+                        guests : updatedBooking.guests,
+                        packageType : updatedBooking.packageType,
+                        details : updatedBooking.details,
+                        phone : updatedBooking.phone
+                    },
+            };
+          
+              const result = await bookings.updateOne(query, update);
+              res.send(result) 
+        });
+
+
+
+        app.delete('/deleteBooking/:id',async(req,res)=>{
+            const id = req.params.id;
+            
+            const query = {_id: new ObjectId(id)};
+      
+            const result = await bookings.deleteOne(query);
+            res.send(result);
+      
+        })
+      
+
+
 
     } catch (error) {
         console.error('Error connecting to MongoDB:', error);
